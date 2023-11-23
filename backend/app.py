@@ -118,14 +118,14 @@ def reset_malaria_db():
 @app.route('/api/malaria/filter')   # with pagination
 def filter_malaria():
     region = request.args.get('region')  # takes region from query parameters
-    year = request.args.get('year')  # takes year from query parameters
+    year = request.args.get('year')  
     who_region = request.args.get('who_region')
     page = request.args.get('page', 1, type=int)  # takes page number from query parameters
     per_page = request.args.get('per_page', 10, type=int)
     iso = request.args.get('iso')
 
     query = Malaria.query
-    url = url = f'/api/malaria/filter?'
+    url = '/api/malaria/filter?'
 
     if region:
         region_list = region.lower().split(',')
