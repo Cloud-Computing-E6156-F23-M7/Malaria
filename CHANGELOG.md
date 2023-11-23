@@ -1,3 +1,9 @@
+## November 22, 2023
+
+### Backend
+
+* Split from Visualization as a child microservice ([@kystanleylin](https://github.com/kystanleylin))
+
 ## November 17, 2023
 
 ### Backend

@@ -17,7 +17,7 @@ npm install --save axios
 pip install -r requirements.txt
 
 docker build -t sample-backend .
-docker run -p 8080:8080 sample-backend
+docker run -p 7071:7071 sample-backend
 ```
 
 ## In frontend folder (not implemented)

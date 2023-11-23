@@ -1,13 +1,12 @@
-import json, os
+import json, os, requests
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.sql import func
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
-import requests
 import pandas as pd
 
-### Set up the databases ###
+### Set up the database ###
 
 class DbConfig(object):
     SQLALCHEMY_DATABASE_URI = 'sqlite:///malaria.db'
@@ -43,26 +42,21 @@ class Malaria(db.Model):
     who_region = db.Column(db.String(100))
     world_bank_income_group = db.Column(db.String(100))
 
-    country = db.relationship('Country', back_populates='malaria')
+    def serialize(self):
+        return {
+            'id': self.id,
+            'region': self.region,
+            'iso': self.iso,
+            'year': self.year,
+            'cases_median': self.cases_median,
+            'deaths_median': self.deaths_median,
+            'land_area_kmsq_2012': self.land_area_kmsq_2012,
+            'languages_en_2012': self.languages_en_2012,
+            'who_region': self.who_region,
+            'world_bank_income_group': self.world_bank_income_group
+        }
 
-class Country(db.Model):
-    __bind_key__ = 'malaria_db'
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.JSON)
-    cca2 = db.Column(db.String(2))
-    cca3 = db.Column(db.String(3), db.ForeignKey('malaria.iso'))    # assume uppercase
-    currencies = db.Column(db.JSON)
-    capital = db.Column(db.JSON)
-    capitalInfo = db.Column(db.JSON)
-    latlng = db.Column(db.JSON)
-    area = db.Column(db.Integer)
-    population = db.Column(db.Integer)
-    timezones = db.Column(db.JSON)
-    flags = db.Column(db.JSON)
-
-    malaria = db.relationship('Malaria', back_populates='country')
-
-### Import data to the databases ###
+### Import data to the database ###
 
 def import_malaria_csv():
     malaria_csv_path = os.path.join(
@@ -99,50 +93,6 @@ def import_malaria_csv():
         db.session.rollback()
         return "Error importing malaria data to the database"
 
-def import_country_data():
-    if Country.query.first():
-        return  "Country data already exists in the database"
-    
-    api_url = 'https://restcountries.com/v3.1/alpha?codes='
-    fields = '&fields=name,cca2,cca3,currencies,capital,capitalInfo,latlng,area,population,timezones,flags'
-    iso_list = db.session.query(Malaria.iso).distinct().all()
-    iso_list_str = ','.join([iso[0] for iso in iso_list])
-
-    try:
-        response = requests.get(api_url + iso_list_str + fields)
-        
-        if response.status_code == 200:
-            api_data = response.json()
-
-            for country in api_data:
-                new_country = Country(
-                    name=country.get('name'),
-                    cca2=country.get('cca2'),
-                    cca3=country.get('cca3'),   # assume uppercase
-                    currencies=country.get('currencies'),
-                    capital=country.get('capital'),
-                    capitalInfo=country.get('capitalInfo'),
-                    latlng=country.get('latlng'),
-                    area=country.get('area'),
-                    population=country.get('population'),
-                    timezones=country.get('timezones'),
-                    flags=country.get('flags')
-                )
-                db.session.add(new_country)
-                
-            try:
-                db.session.commit()
-            except (IntegrityError, SQLAlchemyError):
-                db.session.rollback()
-                return "Error importing country data to the database"
-        else:
-            return jsonify({
-                'error': f'Error fetching country data from API. Status code: {response.status_code}'
-                })
-    
-    except requests.RequestException as e:
-        return jsonify({'error': f'Error making API request: {str(e)}'})
-
 # NOTE: This route is needed for the default EB health check route
 @app.route('/')  
 def home():
@@ -159,41 +109,13 @@ def reset_malaria_db():
         metadata.drop_all(bind=engine)
         metadata.create_all(bind=engine)
         import_malaria_csv()
-        import_country_data()
         return "Successfully reset the malaria database"
     else:
         return "Error resetting the malaria database", 501
 
-### Country and Malaria resources ###
+### Malaria resource ###
 
-@app.route('/api/country/')
-def get_country():
-    iso = request.args.get('iso')
-
-    query = Country.query
-
-    if iso:
-        iso_list = iso.upper().split(',')
-        query = query.filter(Country.cca3.in_(iso_list))
-
-    countries = [{
-        'id': country.id,
-        'name': country.name,
-        'iso2': country.cca2,
-        'iso': country.cca3,
-        'currencies': country.currencies,
-        'capital': country.capital,
-        'capitalInfo': country.capitalInfo,
-        'latlng': country.latlng,
-        'area': country.area,
-        'population': country.population,
-        'timezones': country.timezones,
-        'flags': country.flags
-    } for country in query]
-
-    return jsonify(countries)
-
-@app.route('/api/malaria/filter')
+@app.route('/api/malaria/filter')   # with pagination
 def filter_malaria():
     region = request.args.get('region')  # takes region from query parameters
     year = request.args.get('year')  # takes year from query parameters
@@ -202,9 +124,7 @@ def filter_malaria():
     per_page = request.args.get('per_page', 10, type=int)
     iso = request.args.get('iso')
 
-    query = db.session.query(Malaria, Country) \
-        .select_from(Malaria) \
-        .join(Country, isouter=True)
+    query = Malaria.query
     url = url = f'/api/malaria/filter?'
 
     if region:
@@ -230,80 +150,46 @@ def filter_malaria():
 
     # paginates the filtered query
     pagination = query.paginate(page=page, per_page=per_page, error_out=False)
-    malaria_data = [{
-        'id': malaria.id,
-        'region': malaria.region,
-        'iso': malaria.iso,
-        'year': malaria.year,
-        'cases_median': malaria.cases_median,
-        'deaths_median': malaria.deaths_median,
-        'land_area_kmsq_2012': malaria.land_area_kmsq_2012,
-        'languages_en_2012': malaria.languages_en_2012,
-        'who_region': malaria.who_region,
-        'world_bank_income_group': malaria.world_bank_income_group,
-        'name': country.name if country else None,
-        'latlng': country.latlng if country else None,
-        'currencies': country.currencies if country else None,
-        'capital': country.capital if country else None,
-        'capitalInfo': country.capitalInfo if country else None,
-        'population': country.population if country else None,
-        'flags': country.flags if country else None
-    } for malaria, country in pagination.items]
+    malaria_data = [malaria.serialize() for malaria in pagination.items]
 
     url += '&' if url[-1] != '?' else ''
     next_url = url + f'page={pagination.next_num}&per_page={pagination.per_page}'
     prev_url = url + f'page={pagination.prev_num}&per_page={pagination.per_page}'
+    current_url = url + f'page={pagination.page}&per_page={pagination.per_page}'
 
     return jsonify({
         'malaria_data': malaria_data,
         'previous_page': prev_url,
         'next_page': next_url,
+        'current_page': current_url,
         'total_pages': pagination.pages,
         'total_items': pagination.total
     })
 
-@app.route('/api/malaria/')
+@app.route('/api/malaria/') # without pagination
 def get_all_malaria():
-    malaria_list = db.session.query(Malaria, Country) \
-        .select_from(Malaria) \
-        .join(Country, isouter=True) \
-        .all()
+    malaria_list = Malaria.query.all()
+    return jsonify([malaria.serialize() for malaria in malaria_list])
 
-    malaria_data = [{
-        'id': malaria.id,
-        'region': malaria.region,
-        'iso': malaria.iso,
-        'year': malaria.year,
-        'cases_median': malaria.cases_median,
-        'deaths_median': malaria.deaths_median,
-        'land_area_kmsq_2012': malaria.land_area_kmsq_2012,
-        'languages_en_2012': malaria.languages_en_2012,
-        'who_region': malaria.who_region,
-        'world_bank_income_group': malaria.world_bank_income_group,
-        'name': country.name if country else None,
-        'latlng': country.latlng if country else None,
-        'currencies': country.currencies if country else None,
-        'capital': country.capital if country else None,
-        'capitalInfo': country.capitalInfo if country else None,
-        'population': country.population if country else None,
-        'flags': country.flags if country else None
-    } for malaria, country in malaria_list]
+@app.route('/api/malaria/<int:id>/')
+def get_malaria_by_id(id):
+    malaria = db.session.get(Malaria, id)
 
-    return jsonify(malaria_data)
+    if malaria:
+        return jsonify(malaria.serialize())
+    else:
+        return "Malaria data not found", 404
 
 @app.route('/api/malaria/iso/')
 def get_all_malaria_iso():
     iso_list = db.session.query(Malaria.iso).distinct().order_by(Malaria.iso).all()
-
-    iso_list = [iso[0] for iso in iso_list]
-
-    return jsonify(iso_list)
+    return jsonify([iso[0] for iso in iso_list])
 
 ### Routes for E6156 requirements (NOT to be consumed) ###
 
 @app.route('/api/malaria/<int:id>/', methods=['DELETE'])
 def delete_malaria(id):
-    malaria = Malaria.query.get(id)
+    malaria = db.session.get(Malaria, id)
 
     if malaria:
         db.session.delete(malaria)
@@ -316,24 +202,9 @@ def delete_malaria(id):
     else:
         return "Malaria data not found", 404
 
-@app.route('/api/country/<int:id>/', methods=['DELETE'])
-def delete_country(id):
-    country = Country.query.get(id)
-
-    if country:
-        db.session.delete(country)
-        try:
-            db.session.commit()
-            return "Successfully deleted country data"
-        except (IntegrityError, SQLAlchemyError):
-            db.session.rollback()
-            return "Error deleting country data", 501
-    else:
-        return "Country not found", 404
-
 @app.route('/api/malaria/<int:id>/', methods=['PUT'])
 def update_malaria(id):
-    malaria = Malaria.query.get(id)
+    malaria = db.session.get(Malaria, id)
 
     if malaria:
         new_malaria = request.get_json()
@@ -363,33 +234,6 @@ def update_malaria(id):
             return "Error updating malaria data", 501
     else:
         return "Malaria data not found", 404
-
-@app.route('/api/country/<int:id>/', methods=['PUT'])
-def update_country(id):
-    country = Country.query.get(id)
-
-    if country:
-        new_country = request.get_json()
-        country.name = new_country.get('name', country.name)
-        country.cca2 = new_country.get('iso2', country.cca2)
-        country.cca3 = new_country.get('iso3', country.cca3)
-        country.currencies = new_country.get('currencies', country.currencies)
-        country.capital = new_country.get('capital', country.capital)
-        country.capitalInfo = new_country.get('capitalInfo', country.capitalInfo)
-        country.latlng = new_country.get('latlng', country.latlng)
-        country.area = new_country.get('area', country.area)
-        country.population = new_country.get('population', country.population)
-        country.timezones = new_country.get('timezones', country.timezones)
-        country.flags = new_country.get('flags', country.flags)
-
-        try:
-            db.session.commit()
-            return "Successfully updated country data"
-        except (IntegrityError, SQLAlchemyError):
-            db.session.rollback()
-            return "Error updating country data", 501
-    else:
-        return "Country not found", 404
 
 @app.route('/api/malaria/', methods=['POST'])
 def add_malaria():
@@ -422,36 +266,9 @@ def add_malaria():
         db.session.rollback()
         return "Error adding malaria data", 501
 
-@app.route('/api/country/', methods=['POST'])
-def add_country():
-    new_country_data = request.get_json()
-
-    new_country = Country(
-        name=new_country_data.get('name'),
-        cca2=new_country_data.get('iso2'),
-        cca3=new_country_data.get('iso'),
-        currencies=new_country_data.get('currencies'),
-        capital=new_country_data.get('capital'),
-        capitalInfo=new_country_data.get('capitalInfo'),
-        latlng=new_country_data.get('latlng'),
-        area=new_country_data.get('area'),
-        population=new_country_data.get('population'),
-        timezones=new_country_data.get('timezones'),
-        flags=new_country_data.get('flags')
-    )
-
-    db.session.add(new_country)
-    try:
-        db.session.commit()
-        return "Successfully added country data"
-    except (IntegrityError, SQLAlchemyError):
-        db.session.rollback()
-        return "Error adding country data", 501
-
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
         import_malaria_csv()
-        import_country_data()
 
-    app.run(debug=True, port=8080)
+    app.run(debug=True, port=7071)
