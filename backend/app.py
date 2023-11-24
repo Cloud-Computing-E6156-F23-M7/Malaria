@@ -44,7 +44,7 @@ class Malaria(db.Model):
 
     def serialize(self):
         return {
-            'id': self.id,
+            'malaria_id': self.id,
             'region': self.region,
             'iso': self.iso,
             'year': self.year,
@@ -184,6 +184,15 @@ def get_malaria_by_id(id):
 def get_all_malaria_iso():
     iso_list = db.session.query(Malaria.iso).distinct().order_by(Malaria.iso).all()
     return jsonify([iso[0] for iso in iso_list])
+
+@app.route('/api/malaria/iso/<string:iso>')
+def get_malaria_by_iso(iso):
+    malaria = Malaria.query.filter_by(iso=iso.upper()).first()
+    
+    if malaria:
+        return jsonify(malaria.serialize())
+    else:
+        return "Malaria data not found", 404
 
 ### Routes for E6156 requirements (NOT to be consumed) ###
 

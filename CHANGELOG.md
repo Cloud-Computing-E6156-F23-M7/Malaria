@@ -1,8 +1,8 @@
-## November 22, 2023
+## November 24, 2023
 
 ### Backend
 
-* Split from Visualization as a child microservice ([@kystanleylin](https://github.com/kystanleylin))
+* Add get_malaria_by_iso ([@kystanleylin](https://github.com/kystanleylin))
 
 ## November 17, 2023
 
