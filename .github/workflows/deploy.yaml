@@ -34,10 +34,9 @@ jobs:
         cd backend
         pip install -r requirements.txt
 
-    #- name: Run Tests
-    #  run:
-    #    #pwd
-    #    python -m unittest discover -p 'test_app.py'
+    - name: Run Unit Tests
+      run:
+        python3 -m unittest backend/tests/test_app.py
 
     - name: Set up AWS credentials
       run: |

@@ -52,5 +52,5 @@ class TestMainFile(unittest.TestCase):
     # Add more test methods for other routes and functions as needed
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()
