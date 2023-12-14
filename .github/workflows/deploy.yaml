@@ -24,8 +24,9 @@ jobs:
         cd backend
         pip install -r requirements.txt
 
-    #- name: Run Tests
-    #  run: pytest
+    - name: Run Tests
+      run:
+        python -m unittest discover -p 'test_app.py'
 
     - name: Deploy to EC2
       uses: appleboy/ssh-action@master
