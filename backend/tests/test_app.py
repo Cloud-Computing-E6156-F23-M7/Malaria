@@ -2,6 +2,7 @@ import unittest
 from flask import json
 from backend.app import app, db, Malaria, import_malaria_csv
 
+
 class TestMainFile(unittest.TestCase):
     def setUp(self):
         # Set up a test Flask app and configure it for testing
@@ -49,6 +50,7 @@ class TestMainFile(unittest.TestCase):
         self.assertIsInstance(data, list)
 
     # Add more test methods for other routes and functions as needed
+
 
 if __name__ == '__main__':
     unittest.main()
