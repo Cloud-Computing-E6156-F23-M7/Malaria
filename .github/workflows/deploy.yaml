@@ -10,7 +10,7 @@ env:
   ECR_REPOSITORY: malaria           # set this to your Amazon ECR repository name
   ECS_SERVICE: malaria-service                   # set this to your Amazon ECS service name
   ECS_CLUSTER: malaria-project                  # set this to your Amazon ECS cluster name
-  ECS_TASK_DEFINITION: malaria-stats # set this to the path to your Amazon ECS task definition
+  ECS_TASK_DEFINITION: malaria-stats-revision1 # set this to the path to your Amazon ECS task definition
                                                # file, e.g. .aws/task-definition.json
   CONTAINER_NAME: malaria-app           # set this to the name of the container in the
                                                # containerDefinitions section of your task definition
