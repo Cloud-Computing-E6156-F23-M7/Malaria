@@ -9,7 +9,7 @@ import pandas as pd
 ### Set up the database ###
 
 class DbConfig(object):
-    SQLALCHEMY_DATABASE_URI = 'sqlite:///malaria.db'
+    SQLALCHEMY_DATABASE_URI = 'mysql+pymysql://admin:weareteamm7@malariastat.czmrkezas6nx.us-east-2.rds.amazonaws.com:3306/Malaria_db'
     SQLALCHEMY_BINDS = {
         'malaria_db': SQLALCHEMY_DATABASE_URI  # default bind
     }
