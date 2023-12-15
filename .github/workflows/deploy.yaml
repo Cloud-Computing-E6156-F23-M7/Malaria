@@ -39,8 +39,8 @@ jobs:
       run: |
         docker buildx create --use
         docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }}
-        docker buildx build --platform linux/amd64,linux/arm64 -t your-docker-registry/your-docker-image:latest .
-        docker push your-docker-registry/your-docker-image:latest
+        docker buildx build --platform linux/amd64,linux/arm64 -t docker.io/malaria-app:latest .
+        docker push docker.io/malaria-app:latest
 
   deploy:
     runs-on: ubuntu-latest
@@ -57,5 +57,5 @@ jobs:
         script: |
           cd /home/ec2-user/backend
           docker ${{ DOCKER_IMAGE_NAME }}
-          docker run -d --name ${{ DOCKER_IMAGE_NAME }} -p 7071:7071 ${{ DOCKER_IMAGE_NAME }}
+          docker run -d --name ${{ env.DOCKER_IMAGE_NAME }} -p 7071:7071 ${{ env.DOCKER_IMAGE_NAME }}
           
