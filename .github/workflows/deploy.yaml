@@ -52,7 +52,7 @@ jobs:
         context: ./backend
         push: true
         dockerfile: ./Dockerfile
-        tags: docker.io/malaria.app:latest
+        tags: kl3374/malaria-stats:latest
 
   deploy:
     runs-on: ubuntu-latest
