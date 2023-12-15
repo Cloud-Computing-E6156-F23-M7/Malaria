@@ -7,13 +7,8 @@ on:
 
 env:
   AWS_REGION: us-east-1                   # set this to your preferred AWS region, e.g. us-west-1
-  #ECR_REPOSITORY: malaria           # set this to your Amazon ECR repository name
-  #ECS_SERVICE: malaria-service                   # set this to your Amazon ECS service name
-  #ECS_CLUSTER: malaria-project                  # set this to your Amazon ECS cluster name
-  EC2_INSTANCE_IP: 54.167.32.64        # set this to the public IP or DNS of your EC2 instance
+  EC2_INSTANCE_IP: 3.90.18.171        # set this to the public IP or DNS of your EC2 instance
   EC2_INSTANCE_USER: ec2-user             # set this to the username for connecting to your EC2 instance
-  #ECS_TASK_DEFINITION: malaria-stats-revision1.json # set this to the path to your Amazon ECS task definition
-                                               # file, e.g. .aws/task-definition.json
   DOCKER_IMAGE_NAME: malaria-app           # set this to the name of the container in the
                                                # containerDefinitions section of your task definition
 
@@ -55,13 +50,19 @@ jobs:
         aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
         aws-region: ${{ env.AWS_REGION }}
 
+    - name: Build Docker Image
+      run: |
+        cd backend
+        docker build -t ${{ env.DOCKER_IMAGE_NAME }}:latest .
+
     - name: Deploy to EC2
       run: |
         # Copy the Docker image to the EC2 instance
-        scp -i path/to/your/private-key.pem -o StrictHostKeyChecking=no -r backend/ ${{ env.EC2_INSTANCE_USER }}@${{ env.EC2_INSTANCE_IP }}:/home/${{ env.EC2_INSTANCE_USER }}/backend/
+        scp -i ${{ secrets.EC2_PRIVATE_KEY }} -o StrictHostKeyChecking=no -r backend/ ${{ env.EC2_INSTANCE_USER }}@${{ env.EC2_INSTANCE_IP }}:/home/${{ env.EC2_INSTANCE_USER }}/backend/
 
         # Connect to the EC2 instance and deploy the Docker image
-        ssh -i path/to/your/private-key.pem -o StrictHostKeyChecking=no ${{ env.EC2_INSTANCE_USER }}@${{ env.EC2_INSTANCE_IP }} << 'EOF'
+        ssh -i ${{ secrets.EC2_PRIVATE_KEY }} -o StrictHostKeyChecking=no ${{ env.EC2_INSTANCE_USER }}@${{ env.EC2_INSTANCE_IP }} << 'EOF'
           cd /home/${{ env.EC2_INSTANCE_USER }}/backend
           docker build -t ${{ env.DOCKER_IMAGE_NAME }}:latest .
           docker run -d -p 80:80 ${{ env.DOCKER_IMAGE_NAME }}:latest
+        EOF
