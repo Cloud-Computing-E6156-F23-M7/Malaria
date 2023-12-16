@@ -4,12 +4,13 @@ from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.sql import func
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+from sqlalchemy import text
 import pandas as pd
 
 ### Set up the database ###
 
 class DbConfig(object):
-    SQLALCHEMY_DATABASE_URI = 'sqlite:///malaria.db'
+    SQLALCHEMY_DATABASE_URI = 'mysql+pymysql://admin:weareteamm7@malariastat.czmrkezas6nx.us-east-2.rds.amazonaws.com:3306/Malaria_db'
     SQLALCHEMY_BINDS = {
         'malaria_db': SQLALCHEMY_DATABASE_URI  # default bind
     }
@@ -64,34 +65,41 @@ def import_malaria_csv():
         'estimated_numbers.csv'
         )
     df = pd.read_csv(malaria_csv_path)
-    
-    for index, row in df.iterrows():
-        malaria = Malaria(
-            region=row.get('region'),
-            year=row.get('year'),
-            cases=row.get('cases'),
-            deaths=row.get('deaths'),
-            cases_median=row.get('cases_median'),
-            cases_min=row.get('cases_min'),
-            cases_max=row.get('cases_max'),
-            deaths_median=row.get('deaths_median'),
-            deaths_min=row.get('deaths_min'),
-            deaths_max=row.get('deaths_max'),
-            fips=row.get('fips'),
-            iso=row.get('iso'),   # assume uppercase
-            iso2=row.get('iso2'),
-            land_area_kmsq_2012=row.get('land_area_kmsq_2012'),
-            languages_en_2012=row.get('languages_en_2012'),
-            who_region=row.get('who_region'),
-            world_bank_income_group=row.get('world_bank_income_group')
-        )
-        db.session.add(malaria)
+    df.insert(0, 'id', range(1, len(df) + 1))
 
-    try:
-        db.session.commit()
-    except (IntegrityError, SQLAlchemyError):
-        db.session.rollback()
-        return "Error importing malaria data to the database"
+    df_schema = {
+        'id': db.Integer,
+        'region': db.String(100),
+        'year': db.Integer,
+        'cases': db.String(100),
+        'deaths': db.String(100),
+        'cases_median': db.Integer,
+        'cases_min': db.Integer,
+        'cases_max': db.Integer,
+        'deaths_median': db.Integer,
+        'deaths_min': db.Integer,
+        'deaths_max': db.Integer,
+        'fips': db.String(2),
+        'iso': db.String(3),
+        'iso2': db.String(2),
+        'land_area_kmsq_2012': db.Integer,
+        'languages_en_2012':db.String(100),
+        'who_region': db.String(100),
+        'world_bank_income_group': db.String(100)
+    }
+
+    engine = db.engines['malaria_db']
+
+    df.to_sql(
+        Malaria.__tablename__, 
+        engine, 
+        if_exists='replace', 
+        index=False,
+        dtype=df_schema)
+
+    query = "ALTER TABLE malaria ADD PRIMARY KEY (id);"
+    with engine.connect() as conn:
+        conn.execute(text(query))
 
 # NOTE: This route is needed for the default EB health check route
 @app.route('/')  
@@ -102,7 +110,7 @@ def home():
 
 @app.route('/api/reset/malaria/', methods=['PUT'])
 def reset_malaria_db():
-    engine = db.get_engine(app, bind='malaria_db')
+    engine = db.engines['malaria_db']
     if engine:
         metadata = db.MetaData()
         metadata.reflect(bind=engine)
