@@ -68,6 +68,7 @@ jobs:
         key: ${{ secrets.EC2_PRIVATE_KEY }}
         script: |
           cd /home/ec2-user/backend
+          docker rm -v -f $(docker ps -qa)
           docker pull kl3374/malaria-stats:latest
-          #docker run -d --name malaria-app -p 7071:7071 kl3374/malaria-stats:latest
+          docker run -d --name malaria-app -p 7071:7071 kl3374/malaria-stats:latest
           
