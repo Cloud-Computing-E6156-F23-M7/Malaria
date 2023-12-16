@@ -8,9 +8,9 @@ on:
 env:
   AWS_REGION: us-east-1                   # set this to your preferred AWS region, e.g. us-west-1
   EC2_INSTANCE_IP: 54.237.215.223        # set this to the public IP or DNS of your EC2 instance
-  EC2_INSTANCE_USER: ec2-user             # set this to the username for connecting to your EC2 instance
-  DOCKER_IMAGE_NAME: malaria-app           # set this to the name of the container in the
-                                               # containerDefinitions section of your task definition
+  EC2_INSTANCE_USER: ec2-user             # set this to the username for connecting to your EC2 instance          
+  CONTAINER_NAME: malaria-app
+  DOCKER_HUB_REPOSITORY: kl3374/malaria-stats
 
 jobs:
   build:
@@ -41,18 +41,13 @@ jobs:
         username: ${{ secrets.DOCKER_USERNAME }}
         password: ${{ secrets.DOCKER_PASSWORD }}
 
-    - name: Check Context Path
-      run: |
-        echo "Current working directory: $(pwd)"
-        echo "List of files: $(ls)"
-
     - name: Build and push Docker image
       uses: docker/build-push-action@v2
       with:
         context: ./backend
         push: true
         dockerfile: ./Dockerfile
-        tags: kl3374/malaria-stats:latest
+        tags: ${{ env.DOCKER_HUB_REPOSITORY }}:latest
 
   deploy:
     runs-on: ubuntu-latest
@@ -69,6 +64,6 @@ jobs:
         script: |
           cd /home/ec2-user/backend
           docker rm -v -f $(docker ps -qa)
-          docker pull kl3374/malaria-stats:latest
-          docker run -d --name malaria-app -p 7071:7071 kl3374/malaria-stats:latest
+          docker pull ${{ env.DOCKER_HUB_REPOSITORY }}:latest
+          docker run -d --name ${{ env.CONTAINER_NAME }} -p 7071:7071 ${{ env.DOCKER_HUB_REPOSITORY }}:latest
           
