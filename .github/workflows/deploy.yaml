@@ -69,5 +69,5 @@ jobs:
         script: |
           cd /home/ec2-user/backend
           docker pull kl3374/malaria-stats:latest
-          docker run -d --name malaria-app -p 7071:7071 kl3374/malaria-stats:latest
+          #docker run -d --name malaria-app -p 7071:7071 kl3374/malaria-stats:latest
           
