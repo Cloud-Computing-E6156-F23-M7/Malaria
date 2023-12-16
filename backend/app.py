@@ -65,7 +65,7 @@ def import_malaria_csv():
         'estimated_numbers.csv'
         )
     df = pd.read_csv(malaria_csv_path)
-    df.insert(0, 'id', range(len(df)))
+    df.insert(0, 'id', range(1, len(df) + 1))
 
     df_schema = {
         'id': db.Integer,
