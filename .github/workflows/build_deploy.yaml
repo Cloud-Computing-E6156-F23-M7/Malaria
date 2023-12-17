@@ -7,7 +7,7 @@ on:
 
 env:
   AWS_REGION: us-east-1                   # set this to your preferred AWS region, e.g. us-west-1
-  EC2_INSTANCE_IP: 54.237.215.223        # set this to the public IP or DNS of your EC2 instance
+  EC2_INSTANCE_IP: 3.91.201.73        # set this to the public IP or DNS of your EC2 instance
   EC2_INSTANCE_USER: ec2-user             # set this to the username for connecting to your EC2 instance          
   CONTAINER_NAME: malaria-app
   DOCKER_HUB_REPOSITORY: kl3374/malaria-stats
